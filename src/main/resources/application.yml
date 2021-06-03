@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/Transaction
+    username: root
+    password: password
+  batch:
+    jdbc:
+      initialize-schema: always
+  sql:
+    init:
+      enabled:
+      schema-locations: schema-mysql.sql
