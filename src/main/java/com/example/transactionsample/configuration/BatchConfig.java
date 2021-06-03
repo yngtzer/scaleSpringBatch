@@ -8,6 +8,9 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.integration.async.AsyncItemProcessor;
+import org.springframework.batch.integration.async.AsyncItemWriter;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
@@ -30,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.util.StringUtils;
 
@@ -52,7 +56,7 @@ public class BatchConfig {
                 .start(importCustomerUpdates())
                 .next(importTransactions())
                 .next(applyTransactions())
-                .next(generateStatements(null))
+//                .next(generateStatements(null))
                 .build();
     }
 
@@ -300,6 +304,38 @@ public class BatchConfig {
                         "WHERE ACCOUNT_ID = :accountId")
                 .beanMapped()
                 .build();
+    }
+    
+    @Bean
+    public AsyncItemProcessor<Transaction, Transaction> asyncItemProcessor() {
+        AsyncItemProcessor<Transaction, Transaction> processor = new AsyncItemProcessor<>();
+        processor.setDelegate(processor());
+        processor.setTaskExecutor(new SimpleAsyncTaskExecutor());
+        return processor;
+    }
+    
+    @Bean
+    public ItemProcessor<Transaction, Transaction> processor() {
+        return (transaction) -> {
+            Thread.sleep(5);
+            return transaction;
+        };
+    }
+    
+    @Bean
+    public JdbcBatchItemWriter<Transaction> writer(DataSource dataSource) {
+        return new JdbcBatchItemWriterBuilder<Transaction>()
+                .dataSource(dataSource)
+                .beanMapped()
+                .sql("INSERT INTO TRANSACTION (ACCOUNT, AMOUNT, TIMESTAMP) VALUES (:account, :amount, :timestamp)")
+                .build();
+    }
+
+    @Bean
+    public AsyncItemWriter<Transaction> asyncItemWriter() {
+        AsyncItemWriter<Transaction> writer = new AsyncItemWriter<>();
+        writer.setDelegate(writer(null));
+        return writer;
     }
 
     // step 4
